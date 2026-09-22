@@ -1,0 +1,40 @@
+LAB 2 — SUCCESSFUL REMOTE TRAINING
+
+Azure ML Workspace:
+itcs3556688020-ml
+
+Azure ML Compute:
+itcs3556688020-cpu
+
+Successful Training Job:
+plucky_nose_5rlmmj6byk
+
+Container Image:
+itcs3556688020.azurecr.io/itcs355:lab2fix7
+
+Container Image Digest:
+sha256:38c746d953ec57317a777bc729f7f30202537261351c6801401b702d01ac9fa1
+
+Seed:
+20260101
+
+Data Fingerprint:
+422cccb9136e8140
+
+Validation ROC-AUC:
+0.8363728276105056
+
+Validation PR-AUC:
+0.3963091530665979
+
+Test ROC-AUC:
+0.8482378548603715
+
+Test PR-AUC:
+0.4776221420444084
+
+Job Status:
+COMPLETED
+
+Azure ML Studio:
+https://ml.azure.com/runs/plucky_nose_5rlmmj6byk?wsid=/subscriptions/034c53a8-f544-4cf7-8fab-ede2e693962a/resourcegroups/itcs355-6688020/workspaces/itcs3556688020-ml

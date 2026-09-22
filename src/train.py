@@ -91,16 +91,13 @@ def main() -> None:
             metrics[f"{name}_roc_auc"] = float(roc_auc_score(part[data.TARGET], proba))
             metrics[f"{name}_pr_auc"] = float(average_precision_score(part[data.TARGET], proba))
         mlflow.log_metrics(metrics)
-        # skops 0.15 refuses to serialise sklearn tree models unless the caller names
-        # the types it trusts. sklearn.tree._tree.Tree stores raw node indices that
-        # scikit-learn indexes without bounds checking, so a malicious file can segfault
-        # the process on .predict(). We built this model in this process from our own
-        # data, so trusting it here is a statement about provenance, not a bypass — and
-        # it is scoped to the one type rather than everything skops reports.
-        mlflow.sklearn.log_model(
-            model, name="model",
+        model_dir = "/tmp/model"
+        mlflow.sklearn.save_model(
+            model,
+            model_dir,
             skops_trusted_types=["sklearn.tree._tree.Tree"],
         )
+        mlflow.log_artifacts(model_dir, artifact_path="model")
 
         print(json.dumps({"seed": seed, "data_fingerprint": fingerprint, **metrics}, indent=2))
         if args.metrics_out:

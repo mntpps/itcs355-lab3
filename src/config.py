@@ -51,7 +51,11 @@ class Config:
     mlflow_tracking_uri: str
     model_registry_name: str
     identity_ref: str
-    data_dir: Path = field(default=REPO_ROOT / "data")
+    data_dir: Path = field(
+        default_factory=lambda: Path(
+            os.environ.get("DATA_DIR", REPO_ROOT / "data")
+        )
+    )
     reports_dir: Path = field(default=REPO_ROOT / "reports")
 
     @property

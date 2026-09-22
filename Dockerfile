@@ -1,13 +1,4 @@
-# ITCS355 Lab 1 — training image
-#
-# TODO(Lab 1, Task 2): pin this base image BY DIGEST, not by tag.
-#   Tags move. `python:3.11-slim` today is not `python:3.11-slim` next month, and a
-#   moving base is the commonest reason a "reproducible" build stops reproducing.
-#   Get the digest with:
-#       docker pull python:3.11-slim && docker inspect --format='{{index .RepoDigests 0}}' python:3.11-slim
-#   Then replace the two FROM lines below with the digest form:
-#       FROM python@sha256:<digest> AS builder
-FROM python:3.11-slim AS builder
+FROM python@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -16,22 +7,24 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 WORKDIR /build
 
 # Dependencies first so this layer caches independently of your source.
-COPY requirements.txt ./
-# TODO(Lab 1, Task 2): once requirements.txt carries hashes, add --require-hashes here.
-# It turns a silently-substituted package into a build failure, which is what you want.
-RUN pip install --prefix=/install -r requirements.txt
+COPY requirements-train.txt ./
+
+RUN pip install --require-hashes --prefix=/install -r requirements-train.txt
 
 
-FROM python:3.11-slim AS runtime
+FROM python@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS runtime
 
 # Non-root. A training container has no reason to run as root, and graders check.
 RUN useradd --create-home --uid 10001 runner
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
 COPY --from=builder /install /usr/local
 WORKDIR /app
+RUN mkdir -p /app/data/raw /app/mlruns /app/reports && chown -R runner:runner /app
 COPY --chown=runner:runner src/ ./src/
 COPY --chown=runner:runner cloudlayer/ ./cloudlayer/
 COPY --chown=runner:runner scripts/ ./scripts/
