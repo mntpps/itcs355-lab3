@@ -132,6 +132,8 @@ Rollback was performed at:
 
 `2026-09-29T22:30:12+07:00`
 
+Before rollback, traffic was split **90% `authv2` / 10% `authv1`**. The rollback was performed at the timestamp above, and after rollback traffic was confirmed as **100% `authv2` / 0% `authv1`**.
+
 After rollback, traffic was confirmed as:
 
 - `authv2`: **100%**
