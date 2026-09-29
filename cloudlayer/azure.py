@@ -323,6 +323,57 @@ class AzureAdapter(CloudAdapter):
         with urllib.request.urlopen(request, timeout=60) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    def teardown(self, tags: dict[str, str]) -> list[str]:
+        """Delete Azure resources matching all supplied tags."""
+        import json
+
+        result = subprocess.run(
+            [
+                "az",
+                "resource",
+                "list",
+                "--resource-group",
+                self.cfg.project_id,
+                "-o",
+                "json",
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        resources = json.loads(result.stdout)
+
+        matches = [
+            resource
+            for resource in resources
+            if all((resource.get("tags") or {}).get(key) == value for key, value in tags.items())
+        ]
+
+        priority = {
+            "Microsoft.App/containerApps": 0,
+            "Microsoft.App/managedEnvironments": 1,
+        }
+        matches.sort(key=lambda resource: priority.get(resource.get("type"), 2))
+
+        deleted = []
+        for resource in matches:
+            subprocess.run(
+                [
+                    "az",
+                    "resource",
+                    "delete",
+                    "--ids",
+                    resource["id"],
+                    "--only-show-errors",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+            deleted.append(resource["name"])
+
+        return deleted
+
     # deploy / invoke                   -> Lab 3 (Azure Container Apps deployment)
     # emit_metric                       -> Lab 4 (Azure Monitor custom metric)
     # generate                          -> Lab 5 (managed LLM endpoint; read the usage block for tokens)
