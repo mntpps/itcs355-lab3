@@ -8,7 +8,7 @@ PLATFORM ?= linux/amd64
 SEED ?= 20260101
 
 .PHONY: help setup cloud-check data test portability-audit train image image-push reproduce verify clean teardown \
-        tune compare reload-check serve serve-image loadtest drift inject-drift pipeline cost swap-check llm-eval llm-gate \
+        tune compare reload-check serve serve-image loadtest deploy smoke drift inject-drift pipeline cost swap-check llm-eval llm-gate \
         scan-secrets
 
 help:
@@ -78,6 +78,14 @@ serve: ## Run the inference service locally on :8080
 
 serve-image: ## Build the serving image
 	docker buildx build --platform $(PLATFORM) -f service/Dockerfile.serve -t itcs355-serve:$(TAG) --load .
+
+deploy: ## Deploy the serving image to Azure Container Apps
+	MLFLOW_TRACKING_URI="azureml://southeastasia.api.azureml.ms/mlflow/v1.0/subscriptions/034c53a8-f544-4cf7-8fab-ede2e693962a/resourceGroups/itcs355-6688020/providers/Microsoft.MachineLearningServices/workspaces/itcs3556688020-ml" \
+	MODEL_VERSION=2 \
+	python -c "from cloudlayer.factory import get_adapter; from src import config; cfg=config.load(); print(get_adapter(cfg).deploy('itcs3556688020.azurecr.io/itcs355@sha256:21d9f3cbded6cdf3023acc5f9057a89f9009d518f6227b6d7fc8293817cbe923', 'itcs355-predict', '0.25:0.5Gi'))"
+
+smoke: ## Smoke test the deployed prediction endpoint
+	python -c "from cloudlayer.factory import get_adapter; from src import config; import subprocess; cfg=config.load(); url=subprocess.check_output(['az','containerapp','show','--name','itcs355-predict','--resource-group',cfg.project_id,'--query','properties.configuration.ingress.fqdn','-o','tsv'], text=True).strip(); payload={'temp_c':78.4,'vibration_mm_s':3.1,'pressure_kpa':315.2,'hours_since_service':4200.0,'load_pct':68.0,'ambient_humidity':55.0}; adapter=get_adapter(cfg); print(adapter.invoke('https://'+url,payload))"
 
 loadtest: ## Load test at three concurrency levels
 	@for vus in 1 10 50; do \

@@ -247,8 +247,83 @@ class AzureAdapter(CloudAdapter):
 
         return result
 
+    def register_model(self, model_uri: str, name: str) -> str:
+        """Register an MLflow model in Azure ML and return its version."""
+        from azure.ai.ml.constants import AssetTypes
+        from azure.ai.ml.entities import Model
+
+        ml_client = self._ml_client()
+
+        model = Model(
+            path=model_uri,
+            name=name,
+            type=AssetTypes.MLFLOW_MODEL,
+        )
+
+        registered = ml_client.models.create_or_update(model)
+        return str(registered.version)
+
     # submit_training / register_model  -> Lab 2 (Azure ML command job + model registry)
-    # deploy / invoke                   -> Lab 3 (managed online endpoint + deployment)
+
+    def deploy(self, model_ref: str, endpoint: str, instance: str) -> str:
+        """Deploy the serving image to Azure Container Apps."""
+        import os
+
+        parts = instance.split(":")
+        if len(parts) != 2:
+            raise ValueError(
+                "instance must be '<cpu>:<memory>', e.g. '0.25:0.5Gi'"
+            )
+
+        cpu, memory = parts
+
+        command = [
+            "az",
+            "containerapp",
+            "update",
+            "--name",
+            endpoint,
+            "--resource-group",
+            self.cfg.project_id,
+            "--image",
+            model_ref,
+            "--cpu",
+            cpu,
+            "--memory",
+            memory,
+            "--set-env-vars",
+            f"MODEL_REGISTRY_NAME={self.cfg.model_registry_name}",
+            f"MODEL_VERSION={os.environ.get('MODEL_VERSION', '2')}",
+            f"MLFLOW_TRACKING_URI={os.environ.get('MLFLOW_TRACKING_URI', self.cfg.mlflow_tracking_uri)}",
+        ]
+
+        subprocess.run(
+            command,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+        return endpoint
+
+    def invoke(self, endpoint: str, payload: dict[str, object]) -> dict[str, object]:
+        """Invoke the deployed Azure Container App."""
+        import json
+        import urllib.request
+
+        url = endpoint.rstrip("/") + "/predict"
+
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    # deploy / invoke                   -> Lab 3 (Azure Container Apps deployment)
     # emit_metric                       -> Lab 4 (Azure Monitor custom metric)
     # generate                          -> Lab 5 (managed LLM endpoint; read the usage block for tokens)
     # teardown                          -> Lab 5 (resource graph query by tag)
